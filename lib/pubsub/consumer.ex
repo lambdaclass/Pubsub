@@ -39,23 +39,32 @@ defmodule Pubsub.Consumer do
   def handle_info(:process_messages, state) do
     Process.send_after(self(), :process_messages, 5_000)
 
-    subscription = Enum.random(state.subscriptions)
+    look_for_work(state.subscriptions, state.redis_conn)
 
-    case try_acquire_lock(subscription.topic.name, state.redis_conn) do
+    {:noreply, state}
+  end
+
+  defp look_for_work([], _redis_conn) do
+    :nothing
+  end
+
+  defp look_for_work(subscriptions, redis_conn) do
+    subscription = Enum.random(subscriptions)
+
+    case try_acquire_lock(subscription.topic.name, redis_conn) do
       {:ok, 1} ->
         case pull_from_top(subscription) do
           {:ok, [message]} ->
-            work_on_message(subscription, message, state.redis_conn)
+            work_on_message(subscription, message, redis_conn)
 
           {:ok, []} ->
-            unlock_queue(subscription.topic.name, state.redis_conn)
+            unlock_queue(subscription.topic.name, redis_conn)
+            look_for_work(List.delete(subscriptions, subscription), redis_conn)
         end
 
       {:ok, 0} ->
-        :nothing
+        look_for_work(List.delete(subscriptions, subscription), redis_conn)
     end
-
-    {:noreply, state}
   end
 
   defp try_acquire_lock(queue, redis_conn) do
