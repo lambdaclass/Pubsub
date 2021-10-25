@@ -37,7 +37,7 @@ defmodule Pubsub.Consumer do
 
   @impl true
   def handle_info(:process_messages, state) do
-    Process.send_after(self(), :process_messages, 1_000)
+    Process.send_after(self(), :process_messages, 5_000)
 
     subscription = Enum.random(state.subscriptions)
 
@@ -64,7 +64,7 @@ defmodule Pubsub.Consumer do
   end
 
   defp work_on_message(subscription, message, redis_conn) do
-    Logger.info("#{inspect(self())} Working on message with id #{message.id}")
+    Logger.info("#{inspect(self())} Working on message with id #{message.id} in queue #{subscription.name}")
     acknowledge(subscription, message)
     Redix.command(redis_conn, ["DEL", subscription.topic.name])
   end
