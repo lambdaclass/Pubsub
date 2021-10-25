@@ -1,4 +1,4 @@
 import Config
 
 config :goth,
-  json: "/Users/javier/Downloads/key.json" |> File.read!()
+  json: System.get_env("GOOGLE_PUBSUB_CONFIG") |> File.read!()
