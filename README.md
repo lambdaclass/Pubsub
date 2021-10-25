@@ -1,6 +1,14 @@
 # Pubsub
 
-**TODO: Add description**
+Run redis with
+```
+make redis
+```
+Then run the app with
+```
+iex -S mix
+```
+TODO: Document how to create the google pubsub config.
 
 ## Installation
 
