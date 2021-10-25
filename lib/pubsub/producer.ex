@@ -22,7 +22,7 @@ defmodule Pubsub.Producer do
 
   @impl true
   def handle_info(:send_messages, state) do
-    Process.send_after(self(), :send_messages, 5_000)
+    Process.send_after(self(), :send_messages, 60_000)
 
     Enum.each(state.queues, fn queue -> queue_message(queue) end)
 

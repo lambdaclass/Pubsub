@@ -37,7 +37,7 @@ defmodule Pubsub.Consumer do
 
   @impl true
   def handle_info(:process_messages, state) do
-    Process.send_after(self(), :process_messages, 5_000)
+    Process.send_after(self(), :process_messages, 500)
 
     look_for_work(state.subscriptions, state.redis_conn)
 
@@ -81,6 +81,8 @@ defmodule Pubsub.Consumer do
     Logger.info(
       "#{inspect(self())} Working on message with id #{message.id} in queue #{subscription.name}"
     )
+
+    Process.sleep(5_000)
 
     acknowledge(subscription, message)
     unlock_queue(subscription.topic.name, redis_conn)
