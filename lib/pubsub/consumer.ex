@@ -43,8 +43,13 @@ defmodule Pubsub.Consumer do
 
     case try_acquire_lock(subscription.topic.name, state.redis_conn) do
       {:ok, 1} ->
-        {:ok, [message]} = pull_from_top(subscription)
-        work_on_message(subscription, message, state.redis_conn)
+        case pull_from_top(subscription) do
+          {:ok, [message]} ->
+            work_on_message(subscription, message, state.redis_conn)
+
+          {:ok, []} ->
+            unlock_queue(subscription.topic.name, state.redis_conn)
+        end
 
       {:ok, 0} ->
         :nothing
@@ -64,9 +69,16 @@ defmodule Pubsub.Consumer do
   end
 
   defp work_on_message(subscription, message, redis_conn) do
-    Logger.info("#{inspect(self())} Working on message with id #{message.id} in queue #{subscription.name}")
+    Logger.info(
+      "#{inspect(self())} Working on message with id #{message.id} in queue #{subscription.name}"
+    )
+
     acknowledge(subscription, message)
-    Redix.command(redis_conn, ["DEL", subscription.topic.name])
+    unlock_queue(subscription.topic.name, redis_conn)
+  end
+
+  defp unlock_queue(queue, redis_conn) do
+    Redix.command(redis_conn, ["DEL", queue])
   end
 
   defp acknowledge(subscription, messages) do
