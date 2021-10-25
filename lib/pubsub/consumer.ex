@@ -2,6 +2,8 @@ defmodule Pubsub.Consumer do
   use GenServer
   require Logger
 
+  alias Pubsub.RustExpensiveCode
+
   @contract_queues ["test_1", "test_2", "test_3", "test_4", "test_5"]
 
   # SUBSCRIPTIONS: When you create a topic, the only way to get messages from that topic
@@ -68,9 +70,9 @@ defmodule Pubsub.Consumer do
   end
 
   defp try_acquire_lock(queue, redis_conn) do
-    # Maybe we can put some timestamp as the value (now + some amount of minutes/hours/whatever)
-    # and then as a protection against deadlocks unlock a queue if the timestamp is before now.
     Redix.command(redis_conn, ["SETNX", queue, "some_value"])
+    # TTL of 10 seconds
+    Redix.command(redis_conn, ["EXPIRE", queue, 10])
   end
 
   defp pull_from_top(subscription) do
@@ -82,8 +84,15 @@ defmodule Pubsub.Consumer do
       "#{inspect(self())} Working on message with id #{message.id} in queue #{subscription.name}"
     )
 
-    Process.sleep(5_000)
+    Logger.info("Before calling rustler")
+    RustExpensiveCode.do_work()
+    Logger.info("After calling rustler")
 
+    # IMPORTANT: I think this ack should happen at the beggining, because Google pubsub has
+    # an ack deadline, after which the message is redelivered. The max value for this deadline is 10
+    # minutes, which might no be enough for our needs.
+    # We probably need to have a separate queue where we publish messages that are currently being processed
+    # and then readd them to the normal queue if something fails.
     acknowledge(subscription, message)
     unlock_queue(subscription.topic.name, redis_conn)
   end

@@ -8,7 +8,7 @@ defmodule Pubsub.Application do
   @impl true
   def start(_type, _args) do
     consumer_children =
-      Enum.map(0..9, fn i ->
+      Enum.map(0..0, fn i ->
         Supervisor.child_spec({Pubsub.Consumer, String.to_atom("Pubsub.Consumer_#{i}")},
           id: String.to_atom("Pubsub.Consumer_#{i}")
         )
