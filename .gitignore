@@ -25,3 +25,5 @@ pubsub-*.tar
 
 # Temporary files for e.g. tests
 /tmp
+
+*.so

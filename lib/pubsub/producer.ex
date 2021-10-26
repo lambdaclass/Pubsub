@@ -1,7 +1,18 @@
 defmodule Pubsub.Producer do
   use GenServer
 
-  @contract_queues ["test_1", "test_2", "test_3", "test_4", "test_5"]
+  @contract_queues [
+    "test_1",
+    "test_2",
+    "test_3",
+    "test_4",
+    "test_5",
+    "test_6",
+    "test_7",
+    "test_8",
+    "test_9",
+    "test_10"
+  ]
 
   def start_link(_args) do
     GenServer.start_link(__MODULE__, %{queues: @contract_queues})

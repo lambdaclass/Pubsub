@@ -4,7 +4,18 @@ defmodule Pubsub.Consumer do
 
   alias Pubsub.RustExpensiveCode
 
-  @contract_queues ["test_1", "test_2", "test_3", "test_4", "test_5"]
+  @contract_queues [
+    "test_1",
+    "test_2",
+    "test_3",
+    "test_4",
+    "test_5",
+    "test_6",
+    "test_7",
+    "test_8",
+    "test_9",
+    "test_10"
+  ]
 
   # SUBSCRIPTIONS: When you create a topic, the only way to get messages from that topic
   # is through a subscription. That means that when we create a topic, we should create
@@ -39,7 +50,7 @@ defmodule Pubsub.Consumer do
 
   @impl true
   def handle_info(:process_messages, state) do
-    Process.send_after(self(), :process_messages, 500)
+    Process.send_after(self(), :process_messages, :rand.uniform(10) * 1_000)
 
     look_for_work(state.subscriptions, state.redis_conn)
 
@@ -84,17 +95,21 @@ defmodule Pubsub.Consumer do
       "#{inspect(self())} Working on message with id #{message.id} in queue #{subscription.name}"
     )
 
-    Logger.info("Before calling rustler")
-    RustExpensiveCode.do_work()
-    Logger.info("After calling rustler")
+    case RustExpensiveCode.do_work() do
+      :ok ->
+        # We can use the ack deadline feature and only acknowledge on success as long
+        # as the work we're doing takes less than the maximum ack deadline.
+        acknowledge(subscription, message)
+        unlock_queue(subscription.topic.name, redis_conn)
 
-    # IMPORTANT: I think this ack should happen at the beggining, because Google pubsub has
-    # an ack deadline, after which the message is redelivered. The max value for this deadline is 10
-    # minutes, which might no be enough for our needs.
-    # We probably need to have a separate queue where we publish messages that are currently being processed
-    # and then readd them to the normal queue if something fails.
-    acknowledge(subscription, message)
-    unlock_queue(subscription.topic.name, redis_conn)
+      {:error, error_message} ->
+        # Here the message needs to be republished
+        # If we use the deadline this just amounts to doing nothing
+        # apart from unlocking the queue
+        Logger.info("#{__MODULE__} Error running rust code")
+        unlock_queue(subscription.topic.name, redis_conn)
+        # notify_us_somehow_that_this_happened
+    end
   end
 
   defp unlock_queue(queue, redis_conn) do

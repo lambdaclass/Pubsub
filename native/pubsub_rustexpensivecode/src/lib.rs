@@ -1,7 +1,9 @@
-use rustler::types::atom::{ok};
+use rustler::types::atom::{ok, error};
 use rustler::{Encoder, Env, NifResult, Term};
 
-use std::thread;
+use std::{thread, time};
+
+use rand::prelude::*;
 
 #[rustler::nif(schedule = "DirtyCpu")]
 fn do_work(
@@ -12,8 +14,7 @@ fn do_work(
         .stack_size(1024 * 1024 * 8)
         .spawn(
             move || -> Result<(), String> {
-                // I think Box::new first allocates that array of bytes in the stack and that's the problem
-                Box::new([0u8; 1_000 * 1_000 * 10]);
+                thread::sleep(time::Duration::from_secs(5));
 
                 Ok(())
             },
@@ -21,7 +22,14 @@ fn do_work(
         .unwrap();
 
     let _ = thread.join();
-    return Ok((ok()).encode(env));
+
+    let num = rand::thread_rng().gen_range(0..10);
+
+    if num <= 1 {
+        Ok((error(), String::from("Random Error")).encode(env))
+    } else {
+        Ok(ok().encode(env))
+    }
 }
 
 rustler::init!("Elixir.Pubsub.RustExpensiveCode", [do_work]);
